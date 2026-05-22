@@ -5,62 +5,49 @@
 {% block content %}
 
 <section class="hero">
-    <div class="hero-inner">
-        <div class="hero-badge">Personal Finance Tracker</div>
-        <h1 class="hero-title">
-            Know where your<br>
-            <em>money goes</em>
-        </h1>
-        <p class="hero-subtitle">
-            Log expenses, understand your spending patterns,
-            and take control of your financial life —
-            one transaction at a time.
-        </p>
-        <div class="hero-actions">
-            <a href="{{ url_for('register') }}" class="btn-primary">Start tracking free</a>
-            <a href="{{ url_for('login') }}" class="btn-ghost">Sign in</a>
-        </div>
-    </div>
-    <div class="hero-visual">
-        <div class="mock-card">
-            <div class="mock-card-header">
-                <span class="mock-label">March 2026</span>
-                <span class="mock-total">₹12,450</span>
+        <div class="hero-inner">
+            <div class="hero-badge">Trusted by Thousands</div>
+            <h1 class="hero-title">
+                Take Control of Your<br>
+                <em class="hero-title-green">Financial Future</em>
+            </h1><p class="hero-subtitle">
+                Track every expense, understand your spending habits,
+                and build wealth — all in one simple, intuitive app.
+            </p>
+            <div class="hero-actions">
+                <a href="{{ url_for('register') }}" class="btn-primary">Get Started Free</a>
+                <a href="#" class="btn-ghost" data-modal-trigger="how-it-works">See how it works</a>
             </div>
-            <div class="mock-bars">
-                <div class="mock-bar-row">
-                    <span class="mock-cat">Bills</span>
-                    <div class="mock-bar-track">
-                        <div class="mock-bar" style="width: 72%"></div>
+        </div>
+        <div class="hero-mockup">
+            <div class="mock-card">
+                <div class="mock-card-header">
+                    <div class="mock-browser-dots"><span class="dot"></span>
+                        <span class="dot"></span><span class="dot"></span>
                     </div>
-                    <span class="mock-amt">₹4,500</span>
+                    <span class="mock-label">May 2026</span><span class="mock-total">₹15,820</span>
                 </div>
-                <div class="mock-bar-row">
-                    <span class="mock-cat">Food</span>
-                    <div class="mock-bar-track">
-                        <div class="mock-bar mock-bar-2" style="width: 52%"></div>
+                <div class="mock-bars"><div class="mock-bar-row">
+                        <span class="mock-cat">Bills</span>
+                        <div class="mock-bar-track"><div class="mock-bar" style="width: 65%"></div>
+                        </div>
+                        <span class="mock-amt">₹5,200</span>
                     </div>
-                    <span class="mock-amt">₹3,200</span>
-                </div>
-                <div class="mock-bar-row">
-                    <span class="mock-cat">Health</span>
-                    <div class="mock-bar-track">
-                        <div class="mock-bar mock-bar-3" style="width: 33%"></div>
+                    <div class="mock-bar-row">
+                        <span class="mock-cat">Food & Dining</span>
+                        <div class="mock-bar-track"><div class="mock-bar mock-bar-2" style="width: 48%"></div>
+                        </div>
+                        <span class="mock-amt">₹3,800</span>
                     </div>
-                    <span class="mock-amt">₹2,050</span>
-                </div>
-                <div class="mock-bar-row">
-                    <span class="mock-cat">Transport</span>
-                    <div class="mock-bar-track">
-                        <div class="mock-bar mock-bar-4" style="width: 28%"></div>
+                    <div class="mock-bar-row"><span class="mock-cat">Shopping</span>
+                        <div class="mock-bar-track"><div class="mock-bar mock-bar-3" style="width: 55%"></div>
+                        </div>
+                        <span class="mock-amt">₹4,100</span>
                     </div>
-                    <span class="mock-amt">₹1,800</span>
                 </div>
             </div>
         </div>
-    </div>
 </section>
-
 <section class="features">
     <div class="features-inner">
         <div class="feature-card">
@@ -89,4 +76,68 @@
     </div>
 </section>
 
+<!-- Modal for How It Works -->
+<div class="modal" id="how-it-works-modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <button class="modal-close" data-modal-close="how-it-works">&times;</button>
+        <div class="modal-video">
+            <iframe width="560" height="315" src=""
+                    title="YouTube video player" frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen></iframe>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const VIDEO_URL = 'https://www.youtube.com/embed/Gjw6aWrVpxo?autoplay=1';
+
+        // Get all elements that trigger the modal
+        const triggers = document.querySelectorAll('[data-modal-trigger]');
+        triggers.forEach(trigger => {
+            trigger.addEventListener('click', function(e) {
+                e.preventDefault();
+                const modalId = this.getAttribute('data-modal-trigger');
+                const modal = document.getElementById(modalId + '-modal');
+                if (modal) {
+                    // Set the video URL when opening the modal
+                    const iframe = modal.querySelector('iframe');
+                    iframe.src = VIDEO_URL;
+                    modal.style.display = 'flex';
+                }
+            });
+        });
+
+        // Get all elements that close the modal
+        const closers = document.querySelectorAll('[data-modal-close]');
+        closers.forEach(closer => {
+            closer.addEventListener('click', function() {
+                const modalId = this.getAttribute('data-modal-close');
+                const modal = document.getElementById(modalId + '-modal');
+                if (modal) {
+                    modal.style.display = 'none';
+                    // Stop the video by setting src to empty
+                    const iframe = modal.querySelector('iframe');
+                    iframe.src = '';
+                }
+            });
+        });
+
+        // Close modal when clicking outside the content
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    const modalId = this.id.replace('-modal', '');
+                    this.style.display = 'none';
+                    // Stop the video
+                    const iframe = this.querySelector('iframe');
+                    iframe.src = '';
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}
