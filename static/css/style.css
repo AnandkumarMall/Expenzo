@@ -528,3 +528,48 @@ a { color: inherit; text-decoration: none; }
     .nav-links a:not(.nav-cta) { display: none; }
     .hero { padding: 3rem 1rem 2rem; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Legal Pages                                                          */
+/* ------------------------------------------------------------------ */
+
+.legal-section {
+    background: var(--paper-warm);
+    padding: 4rem 2rem;
+}
+
+.legal-inner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+}
+
+.legal-card {
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    margin-bottom: 2rem;
+    padding: 2rem;
+}
+
+.legal-card h2 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: var(--ink);
+    font-size: 1.25rem;
+}
+
+.legal-card p {
+    margin-bottom: 1rem;
+    line-height: 1.7;
+}
+
+.legal-card ul {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+}
+
+.legal-intro {
+    font-size: 0.9rem;
+    color: var(--ink-muted);
+    margin-bottom: 2rem;
+}
