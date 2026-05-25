@@ -1,7 +1,9 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, redirect, url_for, session
 from database.db import get_db, init_db, seed_db
+from werkzeug.security import generate_password_hash
 
 app = Flask(__name__)
+app.secret_key = 'dev-secret-key-change-in-production'  # In production, use environment variable
 
 
 # ------------------------------------------------------------------ #
@@ -13,8 +15,54 @@ def landing():
     return render_template("landing.html")
 
 
-@app.route("/register")
+@app.route("/register", methods=["GET", "POST"])
 def register():
+    if request.method == "POST":
+        # Get form data
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+
+        # Validate input
+        error = None
+        if not name:
+            error = "Name is required."
+        elif not email:
+            error = "Email is required."
+        elif not password:
+            error = "Password is required."
+        elif len(password) < 8:
+            error = "Password must be at least 8 characters long."
+
+        if error is None:
+            # Check if email already exists
+            db = get_db()
+            cursor = db.cursor()
+            cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
+            existing_user = cursor.fetchone()
+
+            if existing_user:
+                error = "Email already registered."
+            else:
+                # Create new user
+                password_hash = generate_password_hash(password)
+                cursor.execute(
+                    "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+                    (name, email, password_hash)
+                )
+                db.commit()
+                user_id = cursor.lastrowid
+
+                # Log in the user (set session)
+                session['user_id'] = user_id
+
+                # Redirect to home page
+                return redirect(url_for('landing'))
+
+        # If we have an error, re-render the form with the error
+        return render_template("register.html", error=error)
+
+    # GET request: show the form
     return render_template("register.html")
 
 
