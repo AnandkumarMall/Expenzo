@@ -112,7 +112,42 @@ def logout():
 
 @app.route("/profile")
 def profile():
-    return "Profile page — coming in Step 4"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    # Hardcoded data for UI validation (Step 04)
+    user = {
+        "name": "Arjun Mehta",
+        "email": "arjun.mehta@example.com",
+        "member_since": "January 2024"
+    }
+    stats = {
+        "total_spent": "₹42,500",
+        "transaction_count": 128,
+        "top_category": "Dining"
+    }
+    transactions = [
+        {"date": "2026-05-20", "desc": "Starbucks Coffee", "cat": "Dining", "amt": 350},
+        {"date": "2026-05-19", "desc": "Uber Ride", "cat": "Transport", "amt": 420},
+        {"date": "2026-05-18", "desc": "Amazon Shopping", "cat": "Shopping", "amt": 2100},
+        {"date": "2026-05-17", "desc": "Grocery Store", "cat": "Shopping", "amt": 1200},
+        {"date": "2026-05-15", "desc": "Netflix Subscription", "cat": "Entertainment", "amt": 499},
+    ]
+    category_totals = [
+        {"cat": "Dining", "amt": 12000, "pct": 28},
+        {"cat": "Shopping", "amt": 15000, "pct": 35},
+        {"cat": "Transport", "amt": 8000, "pct": 19},
+        {"cat": "Entertainment", "amt": 7500, "pct": 18},
+    ]
+
+    return render_template(
+        "profile.html",
+        user=user,
+        stats=stats,
+        transactions=transactions,
+        category_totals=category_totals
+    )
+
 
 
 @app.route("/expenses/add")
