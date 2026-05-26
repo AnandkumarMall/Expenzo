@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session
-from database.db import get_db, init_db, seed_db
-from werkzeug.security import generate_password_hash
+from database.db import get_db, init_db, seed_db, get_user_by_email
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = 'dev-secret-key-change-in-production'  # In production, use environment variable
@@ -17,6 +17,9 @@ def landing():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    if session.get("user_id"):
+        return redirect(url_for("landing"))
+
     if request.method == "POST":
         # Get form data
         name = request.form.get("name", "").strip()
@@ -66,8 +69,25 @@ def register():
     return render_template("register.html")
 
 
-@app.route("/login")
+@app.route("/login", methods=["GET", "POST"])
 def login():
+    if session.get("user_id"):
+        return redirect(url_for("landing"))
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+
+        if not email or not password:
+            return render_template("login.html", error="Email and password are required.")
+
+        user = get_user_by_email(email)
+        if user and check_password_hash(user["password_hash"], password):
+            session["user_id"] = user["id"]
+            return redirect(url_for("landing"))
+
+        return render_template("login.html", error="Invalid email or password.")
+
     return render_template("login.html")
 
 @app.route("/terms")
@@ -86,7 +106,8 @@ def privacy():
 
 @app.route("/logout")
 def logout():
-    return "Logout — coming in Step 3"
+    session.pop("user_id", None)
+    return redirect(url_for("login"))
 
 
 @app.route("/profile")

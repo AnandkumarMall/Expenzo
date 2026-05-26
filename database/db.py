@@ -13,6 +13,14 @@ def get_db():
     return conn
 
 
+def get_user_by_email(email):
+    """Fetch a user record by email. Returns a sqlite3.Row or None."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+        return cursor.fetchone()
+
+
 def init_db():
     """Initialize database tables - safe to run multiple times."""
     with get_db() as conn:
