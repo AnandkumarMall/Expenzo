@@ -13,6 +13,18 @@ def get_db():
     return conn
 
 
+def _date_clause(date_from, date_to):
+    """Return (sql_fragment, params_tuple) for an optional inclusive date range.
+
+    Returns ("", ()) when no filter is active. The fragment is safe to splice
+    into a WHERE clause as `... AND date BETWEEN ? AND ?`. Both bounds are
+    inclusive on the `expenses.date` column (TEXT, `YYYY-MM-DD`).
+    """
+    if date_from and date_to:
+        return " AND date BETWEEN ? AND ?", (date_from, date_to)
+    return "", ()
+
+
 def get_user_by_email(email):
     """Fetch a user record by email. Returns a sqlite3.Row or None."""
     with get_db() as conn:
@@ -29,66 +41,92 @@ def get_user_by_id(user_id):
         return cursor.fetchone()
 
 
-def get_expenses_for_user(user_id, limit=5):
-    """Return the most recent N expenses for a user, ordered by date DESC, id DESC."""
+def get_expenses_for_user(user_id, limit=5, date_from=None, date_to=None):
+    """Return the most recent N expenses for a user, ordered by date DESC, id DESC.
+
+    If `date_from` and `date_to` are both provided (as ISO `YYYY-MM-DD` strings),
+    the result is limited to expenses whose `date` falls inclusively in that range.
+    """
+    clause, params = _date_clause(date_from, date_to)
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
             "SELECT date, category, description, amount FROM expenses "
-            "WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT ?",
-            (user_id, limit),
+            "WHERE user_id = ?" + clause + " ORDER BY date DESC, id DESC LIMIT ?",
+            (user_id, *params, limit),
         )
         return cursor.fetchall()
 
 
-def count_expenses_for_user(user_id):
-    """Return the number of expenses for a user as an int."""
+def count_expenses_for_user(user_id, date_from=None, date_to=None):
+    """Return the number of expenses for a user as an int.
+
+    If `date_from` and `date_to` are both provided, the count is limited to
+    expenses whose `date` falls inclusively in that range.
+    """
+    clause, params = _date_clause(date_from, date_to)
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT COUNT(*) FROM expenses WHERE user_id = ?",
-            (user_id,),
+            "SELECT COUNT(*) FROM expenses WHERE user_id = ?" + clause,
+            (user_id, *params),
         )
         return int(cursor.fetchone()[0])
 
 
-def get_total_spent(user_id):
-    """Return the SUM(amount) for a user's expenses as a float. Returns 0.0 if no expenses."""
+def get_total_spent(user_id, date_from=None, date_to=None):
+    """Return the SUM(amount) for a user's expenses as a float. Returns 0.0 if no expenses.
+
+    If `date_from` and `date_to` are both provided, the sum is limited to
+    expenses whose `date` falls inclusively in that range.
+    """
+    clause, params = _date_clause(date_from, date_to)
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE user_id = ?",
-            (user_id,),
+            "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE user_id = ?" + clause,
+            (user_id, *params),
         )
         return float(cursor.fetchone()[0])
 
 
-def get_top_category(user_id):
-    """Return the category name with the highest total spend, or None if no expenses."""
+def get_top_category(user_id, date_from=None, date_to=None):
+    """Return the category name with the highest total spend, or None if no expenses.
+
+    If `date_from` and `date_to` are both provided, the ranking is limited to
+    expenses whose `date` falls inclusively in that range.
+    """
+    clause, params = _date_clause(date_from, date_to)
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT category FROM expenses WHERE user_id = ? "
-            "GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1",
-            (user_id,),
+            "SELECT category FROM expenses WHERE user_id = ?"
+            + clause
+            + " GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1",
+            (user_id, *params),
         )
         row = cursor.fetchone()
         return row[0] if row else None
 
 
-def get_category_breakdown(user_id):
+def get_category_breakdown(user_id, date_from=None, date_to=None):
     """Return a list of (category, total_amount, percentage) tuples for the user.
 
     Ordered by total amount descending. Percentages are integers that sum to
     exactly 100 for any non-zero grand total, using largest-remainder rounding.
     Returns an empty list if the user has no expenses.
+
+    If `date_from` and `date_to` are both provided, the breakdown is limited to
+    expenses whose `date` falls inclusively in that range, and percentages are
+    computed against the in-range grand total so they always sum to 100.
     """
+    clause, params = _date_clause(date_from, date_to)
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
             "SELECT category, SUM(amount) AS total FROM expenses "
-            "WHERE user_id = ? GROUP BY category ORDER BY total DESC",
-            (user_id,),
+            "WHERE user_id = ?" + clause + " GROUP BY category ORDER BY total DESC",
+            (user_id, *params),
         )
         rows = cursor.fetchall()
 

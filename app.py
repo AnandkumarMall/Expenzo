@@ -5,7 +5,7 @@ from database.db import (
     get_total_spent, get_top_category, get_category_breakdown,
 )
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 app = Flask(__name__)
 app.secret_key = 'dev-secret-key-change-in-production'  # In production, use environment variable
@@ -144,21 +144,30 @@ def profile():
         session.pop("user_id", None)
         return redirect(url_for("login"))
 
-    total_spent = get_total_spent(user_id)
-    top_category = get_top_category(user_id)
+    # Resolve the optional date filter from the query string. Invalid input
+    # silently falls back to lifetime (None, None).
+    date_from, date_to, active_preset = _resolve_date_range()
+    active_filter = (
+        {"from": date_from, "to": date_to, "preset": active_preset}
+        if date_from and date_to
+        else None
+    )
+
+    total_spent = get_total_spent(user_id, date_from, date_to)
+    top_category = get_top_category(user_id, date_from, date_to)
     stats = {
         "total_spent": format_inr(total_spent),
-        "transaction_count": count_expenses_for_user(user_id),
+        "transaction_count": count_expenses_for_user(user_id, date_from, date_to),
         "top_category": top_category if top_category else "—",
     }
     category_totals = [
         {"cat": c, "amt": a, "pct": p}
-        for c, a, p in get_category_breakdown(user_id)
+        for c, a, p in get_category_breakdown(user_id, date_from, date_to)
     ]
 
     transactions = [
         {"date": r["date"], "desc": r["description"] or "", "cat": r["category"], "amt": r["amount"]}
-        for r in get_expenses_for_user(user_id, limit=5)
+        for r in get_expenses_for_user(user_id, limit=5, date_from=date_from, date_to=date_to)
     ]
 
     user = {
@@ -173,8 +182,74 @@ def profile():
         stats=stats,
         transactions=transactions,
         category_totals=category_totals,
+        active_filter=active_filter,
     )
 
+
+# ------------------------------------------------------------------ #
+# Profile filter helpers                                              #
+# ------------------------------------------------------------------ #
+
+def _today():
+    """Return the server's "today" as a `date`. Indirected through a module
+    helper so tests can monkey-patch the value without touching the immutable
+    built-in `datetime.date` type.
+    """
+    return date.today()
+
+
+def _shift_month(d, delta):
+    """Return the first-of-month `delta` months from `d` (d must be day=1)."""
+    month_index = d.month - 1 + delta
+    year = d.year + month_index // 12
+    month = month_index % 12 + 1
+    return date(year, month, 1)
+
+
+def _resolve_date_range():
+    """Return (date_from, date_to, preset_label) for the current request.
+
+    The preset label is one of the five preset names or None for lifetime.
+    Invalid input (unknown preset, malformed dates, from > to) silently
+    falls back to lifetime — see spec §"Query parameter contract" for the
+    full rules.
+    """
+    preset = request.args.get("range")
+    today = _today()
+
+    if preset == "this_month":
+        first = today.replace(day=1)
+        return first.isoformat(), today.isoformat(), "this_month"
+    if preset == "last_month":
+        first_this = today.replace(day=1)
+        last_prev = first_this - timedelta(days=1)
+        first_prev = last_prev.replace(day=1)
+        return first_prev.isoformat(), last_prev.isoformat(), "last_month"
+    if preset == "last_3_months":
+        first_this = today.replace(day=1)
+        first = _shift_month(first_this, -2)
+        return first.isoformat(), today.isoformat(), "last_3_months"
+    if preset == "last_6_months":
+        first_this = today.replace(day=1)
+        first = _shift_month(first_this, -5)
+        return first.isoformat(), today.isoformat(), "last_6_months"
+
+    # Custom range: honour ?from=&to= regardless of whether ?range=custom is
+    # explicitly set. This is the URL the user lands on after submitting the
+    # custom date inputs.
+    raw_from = request.args.get("from")
+    raw_to = request.args.get("to")
+    if raw_from and raw_to:
+        try:
+            d_from = date.fromisoformat(raw_from)
+            d_to = date.fromisoformat(raw_to)
+        except ValueError:
+            return None, None, None
+        if d_from > d_to:
+            return None, None, None
+        return d_from.isoformat(), d_to.isoformat(), "custom"
+
+    return None, None, None
 
 
 @app.route("/expenses/add")

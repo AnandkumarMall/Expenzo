@@ -2,6 +2,7 @@
 
 {% block head %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/profile-filter.css') }}">
 {% endblock %}
 
 {% block title %}My Profile — Spendly{% endblock %}
@@ -26,6 +27,37 @@
             </div>
         </div>
     </div>
+
+    <!-- Date Filter Bar -->
+    {% set preset = active_filter.preset if active_filter else '' %}
+    <form method="get" action="{{ url_for('profile') }}" class="filter-bar" id="profile-filter-form">
+        <div class="filter-bar-row">
+            <label for="filter-range" class="filter-label">Range</label>
+            <select name="range" id="filter-range" class="filter-select form-input">
+                <option value=""             {% if not preset %}selected{% endif %}>Lifetime</option>
+                <option value="this_month"    {% if preset == 'this_month'    %}selected{% endif %}>This Month</option>
+                <option value="last_month"    {% if preset == 'last_month'    %}selected{% endif %}>Last Month</option>
+                <option value="last_3_months" {% if preset == 'last_3_months' %}selected{% endif %}>Last 3 Months</option>
+                <option value="last_6_months" {% if preset == 'last_6_months' %}selected{% endif %}>Last 6 Months</option>
+                <option value="custom"        {% if preset == 'custom'        %}selected{% endif %}>Custom</option>
+            </select>
+
+            <div class="filter-dates" id="filter-dates" {% if preset != 'custom' %}hidden{% endif %}>
+                <input type="date" name="from" value="{{ active_filter.from if preset == 'custom' else '' }}" class="filter-date form-input">
+                <span class="filter-dash">—</span>
+                <input type="date" name="to"   value="{{ active_filter.to   if preset == 'custom' else '' }}" class="filter-date form-input">
+            </div>
+
+            <button type="submit" class="btn-primary filter-apply">Apply</button>
+            <a href="{{ url_for('profile') }}" class="btn-ghost filter-reset">Reset</a>
+        </div>
+
+        {% if active_filter %}
+        <p class="filter-banner">
+            Showing {{ active_filter.from }} — {{ active_filter.to }} · {{ stats.transaction_count }} transactions
+        </p>
+        {% endif %}
+    </form>
 
     <!-- Summary Stats Row -->
     <div class="stats-grid">
