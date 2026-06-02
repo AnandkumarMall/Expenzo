@@ -15,6 +15,21 @@
     color: var(--ink);
 }
 
+/* When the page-title sits in a flex row with a primary action to its right,
+   the wrapper owns the vertical spacing and the heading's own bottom margin
+   collapses to zero. */
+.page-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.page-title-row .page-title {
+    margin-bottom: 0;
+}
+
 /* Card Base */
 .profile-card {
     background: var(--paper-card);

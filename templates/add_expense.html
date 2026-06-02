@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Add expense — Spendly{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/add-expense.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="auth-section">
+    <div class="auth-container">
+
+        <div class="auth-header">
+            <h1 class="auth-title">Add an expense</h1>
+            <p class="auth-subtitle">Record what you spent and where it went</p>
+        </div>
+
+        <div class="auth-card">
+            {% if error %}
+            <div class="auth-error">{{ error|e }}</div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('add_expense') }}" novalidate>
+                <div class="form-group {% if field_error == 'amount' %}field-error{% endif %}">
+                    <label for="amount">Amount</label>
+                    <input id="amount" type="number" name="amount" step="0.01" min="0.01"
+                           class="form-input" placeholder="0.00" required
+                           value="{{ values.amount|e }}">
+                </div>
+
+                <div class="form-group {% if field_error == 'category' %}field-error{% endif %}">
+                    <label for="category">Category</label>
+                    <select id="category" name="category" class="form-input" required>
+                        <option value="" disabled {% if not values.category %}selected{% endif %}>Select a category</option>
+                        {% for c in categories %}
+                        <option value="{{ c }}" {% if values.category == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group {% if field_error == 'date' %}field-error{% endif %}">
+                    <label for="date">Date</label>
+                    <input id="date" type="date" name="date" class="form-input" required
+                           value="{{ values.date|e }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description <span class="optional">(optional)</span></label>
+                    <textarea id="description" name="description" rows="3" maxlength="200"
+                              class="form-input" placeholder="A short note about this expense">{{ values.description|e }}</textarea>
+                </div>
+
+                <div class="add-expense-actions">
+                    <a class="btn-ghost" href="{{ url_for('profile') }}">Cancel</a>
+                    <button type="submit" class="btn-submit add-expense-submit">Add expense</button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</section>
+
+{% endblock %}

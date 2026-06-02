@@ -1,5 +1,13 @@
 {
   "permissions": {
+    "allow": [
+      "mcp__sqlite__describe_table",
+      "mcp__plugin_figma_figma__get_screenshot",
+      "mcp__plugin_figma_figma__get_metadata",
+      "mcp__plugin_figma_figma__get_design_context",
+      "Bash(curl -s -b cookies.txt -o analytics.html -w \"logged-in /analytics -> %{http_code}\\\\n\" http://127.0.0.1:5001/analytics)",
+      "mcp__plugin_figma_figma__whoami"
+    ],
     "ask": [
       "WebSearch"
     ]
