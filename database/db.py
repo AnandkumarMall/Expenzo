@@ -231,6 +231,25 @@ def update_expense(user_id, expense_id, amount, category, date, description):
         conn.commit()
 
 
+def delete_expense(user_id, expense_id):
+    """DELETE one row in place, guarded by user_id.
+
+    Returns the rowcount so callers can distinguish a successful delete
+    (1) from a no-op (0). The route's pre-flight get_expense_by_id makes
+    a 0-rowcount result unreachable from /expenses/<id>/delete today, but
+    the helper still surfaces it as a documented contract for future
+    callers (e.g. a bulk-delete admin tool). All values are parameterised.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM expenses WHERE id = ? AND user_id = ?",
+            (expense_id, user_id),
+        )
+        conn.commit()
+        return cursor.rowcount
+
+
 def init_db():
     """Initialize database tables - safe to run multiple times."""
     with get_db() as conn:

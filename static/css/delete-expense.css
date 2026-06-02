@@ -1,0 +1,51 @@
+/* ------------------------------------------------------------------ */
+/* Delete expense confirmation page                                    */
+/* ------------------------------------------------------------------ */
+
+/* Read-only summary block. Four rows of label + value, separated by
+   a soft border. The last row has no border so the block reads as a
+   finished unit, not a list that got cut off mid-row. */
+.delete-summary {
+    margin-bottom: 1.5rem;
+}
+
+.delete-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.delete-summary-row:last-child {
+    border-bottom: none;
+}
+
+.delete-summary-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.delete-summary-value {
+    font-size: 0.95rem;
+    color: var(--ink);
+    text-align: right;
+    word-break: break-word;
+}
+
+/* Destructive submit button. Visually distinct from the primary
+   .btn-submit on the add/edit forms so the user can tell at a glance
+   that this is an irreversible action. Colour comes from --danger /
+   --danger-dark (defined globally in style.css). */
+.btn-danger {
+    background: var(--danger);
+    color: var(--paper);
+}
+
+.btn-danger:hover {
+    background: var(--danger-dark);
+}

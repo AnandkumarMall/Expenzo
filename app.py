@@ -4,7 +4,7 @@ from database.db import (
     get_user_by_id, get_expenses_for_user, count_expenses_for_user,
     get_total_spent, get_top_category, get_category_breakdown,
     add_expense as add_expense_to_db,
-    get_expense_by_id, update_expense,
+    get_expense_by_id, update_expense, delete_expense as delete_expense_db,
     EXPENSE_CATEGORIES,
 )
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -506,9 +506,44 @@ def edit_expense(id):
     )
 
 
-@app.route("/expenses/<int:id>/delete")
+@app.route("/expenses/<int:id>/delete", methods=["GET", "POST"])
 def delete_expense(id):
-    return "Delete expense — coming in Step 9"
+    # Auth gate — must run on both GET and POST, before reading the row,
+    # so logged-out users never see the confirmation page and can never
+    # submit a delete.
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    user_id = session["user_id"]
+
+    # Fetch the row, scoped to the logged-in user. 404 for both
+    # "does not exist" and "owned by another user" so the route does
+    # not leak the existence of another user's row.
+    expense = get_expense_by_id(user_id, id)
+    if expense is None:
+        abort(404)
+
+    if request.method == "POST":
+        # DELETE is guarded by user_id inside the helper, so a user can
+        # never delete another user's row even if they POST to the right
+        # id. The pre-flight get_expense_by_id above makes a 0-rowcount
+        # result unreachable in practice, but we still commit and redirect.
+        delete_expense_db(user_id, id)
+        return redirect(url_for("profile"))
+
+    # GET — render the confirmation page with the row's fields displayed
+    # for review. The `values` dict matches the shape edit_expense.html
+    # reads, so the template iterates one source of display data.
+    return render_template(
+        "delete_expense.html",
+        expense=expense,
+        values={
+            "date": expense["date"],
+            "category": expense["category"],
+            "amount": format_inr(expense["amount"]),
+            "description": expense["description"] or "—",
+        },
+    )
 
 
 # Initialize database on startup

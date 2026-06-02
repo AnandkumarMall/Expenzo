@@ -238,3 +238,17 @@
 .link-edit:hover {
     border-bottom-color: var(--accent);
 }
+
+.link-delete {
+    color: var(--danger);
+    font-weight: 500;
+    font-size: 0.85rem;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
+    margin-left: 0.75rem;
+}
+
+.link-delete:hover {
+    border-bottom-color: var(--danger);
+}
