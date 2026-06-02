@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Add expense — Spendly{% endblock %}
+{% block title %}Edit expense — Spendly{% endblock %}
 
 {% block content %}
 
@@ -8,8 +8,8 @@
     <div class="auth-container">
 
         <div class="auth-header">
-            <h1 class="auth-title">Add an expense</h1>
-            <p class="auth-subtitle">Record what you spent and where it went</p>
+            <h1 class="auth-title">Edit expense</h1>
+            <p class="auth-subtitle">Editing expense from {{ expense.date|e }}</p>
         </div>
 
         <div class="auth-card">
@@ -17,7 +17,7 @@
             <div class="auth-error">{{ error|e }}</div>
             {% endif %}
 
-            <form method="POST" action="{{ url_for('add_expense') }}" novalidate>
+            <form method="POST" action="{{ url_for('edit_expense', id=expense.id) }}" novalidate>
                 {% include "_expense_form_fields.html" %}
             </form>
         </div>

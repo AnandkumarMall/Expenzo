@@ -217,3 +217,24 @@
     font-size: 0.75rem;
     font-weight: 500;
 }
+
+/* Actions cell on each recent-transactions row. Quiet text link, not a
+   primary button, so the table reads as a history list rather than a
+   control panel. */
+.actions-cell {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.link-edit {
+    color: var(--accent);
+    font-weight: 500;
+    font-size: 0.85rem;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
+}
+
+.link-edit:hover {
+    border-bottom-color: var(--accent);
+}
