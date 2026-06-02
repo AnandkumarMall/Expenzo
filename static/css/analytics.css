@@ -1,0 +1,125 @@
+/* Analytics — Coming Soon page styles
+   Reuses design tokens from style.css (ink, accent, paper, font-display, etc.) */
+
+.coming-soon-page {
+    min-height: calc(100vh - 60px - 100px);
+    background: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 2rem;
+}
+
+.coming-soon-card {
+    position: relative;
+    background: var(--paper-card);
+    border-radius: 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    padding: 3.5rem 3rem 2.5rem;
+    width: 100%;
+    max-width: 460px;
+    text-align: center;
+    overflow: hidden;
+}
+
+/* Decorative quarter-circle shapes in opposite corners */
+.card-corner {
+    position: absolute;
+    width: 90px;
+    height: 90px;
+    background: var(--paper-warm);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.card-corner--tr {
+    top: -45px;
+    right: -45px;
+}
+
+.card-corner--bl {
+    bottom: -45px;
+    left: -45px;
+}
+
+.coming-soon-icon {
+    width: 72px;
+    height: 72px;
+    background: var(--accent);
+    color: var(--paper);
+    border-radius: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 12px rgba(26, 71, 42, 0.15);
+}
+
+.coming-soon-icon i,
+.coming-soon-icon svg {
+    width: 36px;
+    height: 36px;
+    stroke-width: 2;
+}
+
+.coming-soon-pill {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--paper);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.4rem 1rem;
+    border-radius: 999px;
+    margin-bottom: 1.25rem;
+}
+
+.coming-soon-title {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    color: var(--ink);
+    margin: 0 0 1rem;
+    letter-spacing: -0.01em;
+}
+
+.coming-soon-description {
+    font-size: 0.95rem;
+    color: var(--ink-muted);
+    line-height: 1.6;
+    max-width: 340px;
+    margin: 0 auto 1.75rem;
+}
+
+.coming-soon-dots {
+    display: flex;
+    justify-content: center;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+}
+
+.coming-soon-dots .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ink-faint);
+    opacity: 0.5;
+    display: inline-block;
+}
+
+.coming-soon-dots .dot--active {
+    background: var(--accent);
+    opacity: 1;
+}
+
+.coming-soon-tagline {
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+    margin: 0;
+}
+
+@media (max-width: 600px) {
+    .coming-soon-page { padding: 2rem 1rem; }
+    .coming-soon-card { padding: 2.5rem 1.5rem 2rem; }
+    .coming-soon-title { font-size: 1.75rem; }
+}
