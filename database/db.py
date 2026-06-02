@@ -4,6 +4,19 @@ from datetime import datetime, timedelta
 
 DATABASE = 'expense_tracker.db'
 
+# Canonical list of expense categories, in the order the form dropdown and
+# seed data both use. Keep this as the single source of truth — the form
+# iterates over it and seed_db() references it so the two can never drift.
+EXPENSE_CATEGORIES = [
+    "Food",
+    "Transport",
+    "Bills",
+    "Health",
+    "Entertainment",
+    "Shopping",
+    "Other",
+]
+
 
 def get_db():
     """Get a database connection with foreign keys enabled and row factory."""
@@ -160,6 +173,23 @@ def get_category_breakdown(user_id, date_from=None, date_to=None):
     return breakdown
 
 
+def add_expense(user_id, amount, category, date, description):
+    """Insert a new expense row for the given user. Returns the new row's id.
+
+    `description` may be None — SQLite binds Python None to NULL via the `?`
+    placeholder, and the column is nullable. All values are parameterised.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO expenses (user_id, amount, category, date, description) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (user_id, amount, category, date, description),
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
 def init_db():
     """Initialize database tables - safe to run multiple times."""
     with get_db() as conn:
@@ -213,7 +243,7 @@ def seed_db():
         user_id = cursor.lastrowid
 
         # Define expense categories (from spec)
-        categories = ['Food', 'Transport', 'Bills', 'Health', 'Entertainment', 'Shopping', 'Other']
+        categories = EXPENSE_CATEGORIES
 
         # Generate 8 sample expenses across current month
         base_date = datetime.now().date()

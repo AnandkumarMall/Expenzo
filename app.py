@@ -3,9 +3,12 @@ from database.db import (
     get_db, init_db, seed_db, get_user_by_email,
     get_user_by_id, get_expenses_for_user, count_expenses_for_user,
     get_total_spent, get_top_category, get_category_breakdown,
+    add_expense as add_expense_to_db,
+    EXPENSE_CATEGORIES,
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, date, timedelta
+import math
 
 app = Flask(__name__)
 app.secret_key = 'dev-secret-key-change-in-production'  # In production, use environment variable
@@ -198,6 +201,37 @@ def _today():
     return date.today()
 
 
+def _empty_form_values(date_str):
+    """Return the four-field dict used to render the add-expense form's GET
+    branch and the round-trip error branch. Centralised so the two call sites
+    cannot drift if a fifth field is ever added.
+    """
+    return {"amount": "", "category": "", "date": date_str, "description": ""}
+
+
+def _validate_amount(raw):
+    """Validate a raw form string for the amount field. Returns the parsed
+    value (rounded to 2dp) on success, or None on any validation failure.
+    Callers must inspect the tuple's second element for the user-facing error
+    message and the third for the field name used to drive the highlight.
+
+    Pulled out of the route so the four-step validation (required, numeric,
+    finite, positive) reads as a flat list and so the same pattern can be
+    reused by Step 8 (edit) without copy-paste.
+    """
+    if not raw:
+        return None, "Amount is required.", "amount"
+    try:
+        amount = float(raw)
+    except ValueError:
+        return None, "Amount must be a number.", "amount"
+    if not math.isfinite(amount):
+        return None, "Amount must be a real number.", "amount"
+    if amount <= 0:
+        return None, "Amount must be greater than zero.", "amount"
+    return round(amount, 2), None, None
+
+
 def _shift_month(d, delta):
     """Return the first-of-month `delta` months from `d` (d must be day=1)."""
     month_index = d.month - 1 + delta
@@ -259,9 +293,106 @@ def analytics():
     return render_template("analytics.html")
 
 
-@app.route("/expenses/add")
+@app.route("/expenses/add", methods=["GET", "POST"])
 def add_expense():
-    return "Add expense — coming in Step 7"
+    # Auth gate — must run on both GET and POST, before reading request.form,
+    # so logged-out users never see the form and can never submit inserts.
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        # Parse form. Empty string is the sentinel for "missing" everywhere
+        # below; .strip() matches the convention used in /register.
+        amount_raw = request.form.get("amount", "").strip()
+        category = request.form.get("category", "").strip()
+        date_raw = request.form.get("date", "").strip()
+        desc_raw = request.form.get("description", "").strip()
+
+        error = None
+        field_error = None
+
+        # amount: required, finite, > 0. Pulled into _validate_amount() so
+        # the four-step ladder reads as a flat list and the rule is reusable
+        # in Step 8 (edit) without copy-paste.
+        amount, amount_err, amount_field = _validate_amount(amount_raw)
+        if amount_err is not None:
+            error = amount_err
+            field_error = amount_field
+
+        # category: empty is "required", any other non-canonical value is
+        # "validity". Server-side guard catches anything the <select>
+        # constraint would normally block (curl, DevTools tampering, etc.).
+        if error is None:
+            if not category:
+                error = "Category is required."
+                field_error = "category"
+            elif category not in EXPENSE_CATEGORIES:
+                error = "Please choose a valid category."
+                field_error = "category"
+
+        # date: required, ISO YYYY-MM-DD, not in the future. Empty check
+        # comes first because strptime('') raises ValueError.
+        if error is None:
+            if not date_raw:
+                error = "Date is required."
+                field_error = "date"
+            else:
+                try:
+                    parsed_date = datetime.strptime(date_raw, "%Y-%m-%d").date()
+                except ValueError:
+                    error = "Date must be in YYYY-MM-DD format."
+                    field_error = "date"
+                else:
+                    if parsed_date > _today():
+                        error = "Date cannot be in the future."
+                        field_error = "date"
+
+        # description: optional, capped at 200 chars on the server. The
+        # <textarea maxlength> is client-side only; a curl request bypasses it.
+        if error is None and desc_raw and len(desc_raw) > 200:
+            error = "Description must be 200 characters or fewer."
+            field_error = "description"
+
+        # description: empty string is stored as NULL, not "".
+        description = desc_raw if desc_raw else None
+
+        if error is not None:
+            # Round-trip the raw submitted values so the user keeps their
+            # typing on valid fields. Description is always a string here so
+            # the template's |e filter is safe.
+            values = {
+                "amount": amount_raw,
+                "category": category,
+                "date": date_raw,
+                "description": desc_raw,
+            }
+            return render_template(
+                "add_expense.html",
+                values=values,
+                categories=EXPENSE_CATEGORIES,
+                error=error,
+                field_error=field_error,
+            )
+
+        # Success path — insert, then redirect to the dashboard.
+        add_expense_to_db(
+            session["user_id"],
+            amount,
+            category,
+            date_raw,
+            description,
+        )
+        return redirect(url_for("profile"))
+
+    # GET — render the empty form. Date is pre-filled with today so the
+    # common case is "type an amount, hit save".
+    return render_template(
+        "add_expense.html",
+        values=_empty_form_values(_today().isoformat()),
+        categories=EXPENSE_CATEGORIES,
+        error=None,
+        field_error=None,
+    )
 
 
 @app.route("/expenses/<int:id>/edit")
