@@ -503,6 +503,41 @@ a { color: inherit; text-decoration: none; }
 
 .btn-submit:hover { background: var(--accent); }
 
+/* Expense form (add + edit) — shared by /expenses/add and
+   /expenses/<id>/edit. The actions row puts Cancel (btn-ghost) on the
+   left and the submit on the right; the submit is full-width by
+   default in .btn-submit, so the row overrides that with flex. */
+.expense-form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.expense-form-actions .expense-form-submit {
+    width: auto;
+    flex: 1;
+}
+
+/* Field-error highlight: the route adds .field-error to the
+   .form-group wrapper when a particular field failed validation,
+   so the descendant selector targets the actual control inside.
+   Mirrors what add/edit-expense pages used to define separately. */
+.field-error input,
+.field-error select,
+.field-error textarea {
+    border-color: var(--danger);
+    background: var(--danger-light);
+}
+
+.field-error input:focus,
+.field-error select:focus,
+.field-error textarea:focus {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px var(--danger-light);
+}
+
 .auth-switch {
     text-align: center;
     font-size: 0.875rem;

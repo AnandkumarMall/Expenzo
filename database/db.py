@@ -59,12 +59,14 @@ def get_expenses_for_user(user_id, limit=5, date_from=None, date_to=None):
 
     If `date_from` and `date_to` are both provided (as ISO `YYYY-MM-DD` strings),
     the result is limited to expenses whose `date` falls inclusively in that range.
+    The `id` column is included so callers can build per-row action links
+    (e.g. /expenses/<id>/edit) without a second round-trip.
     """
     clause, params = _date_clause(date_from, date_to)
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT date, category, description, amount FROM expenses "
+            "SELECT id, date, category, description, amount FROM expenses "
             "WHERE user_id = ?" + clause + " ORDER BY date DESC, id DESC LIMIT ?",
             (user_id, *params, limit),
         )
@@ -188,6 +190,45 @@ def add_expense(user_id, amount, category, date, description):
         )
         conn.commit()
         return cursor.lastrowid
+
+
+def get_expense_by_id(user_id, expense_id):
+    """Return the expenses row whose id AND user_id match, or None.
+
+    Used by the edit route to fetch the row for GET and to gate POST on
+    ownership in a single round-trip. A user querying another user's id
+    gets None — the route treats that as 404. All values are parameterised.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM expenses WHERE id = ? AND user_id = ?",
+            (expense_id, user_id),
+        )
+        return cursor.fetchone()
+
+
+def update_expense(user_id, expense_id, amount, category, date, description):
+    """UPDATE one row in place, guarded by user_id.
+
+    Does not touch created_at — that column records the original insert
+    time and is intentionally immutable. The route has already verified
+    ownership via get_expense_by_id and treats a missing row as 404
+    before reaching this helper, so the rowcount is not surfaced. A TOCTOU
+    window between the SELECT and the UPDATE is bounded — a successful
+    delete between the two would simply affect 0 rows, which the route
+    cannot observe today. The Step-9 delete route should be reviewed for
+    this race when it is added.
+    `description` may be None. All values are parameterised.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE expenses SET amount = ?, category = ?, date = ?, "
+            "description = ? WHERE id = ? AND user_id = ?",
+            (amount, category, date, description, expense_id, user_id),
+        )
+        conn.commit()
 
 
 def init_db():

@@ -1,0 +1,51 @@
+{# Shared form fields for the add and edit expense pages.
+
+   Used by add_expense.html and edit_expense.html. Each calling template
+   wraps this partial in a <form> ... </form> with its own action URL,
+   and passes:
+     - `values`:      dict with amount, category, date, description
+                      (round-trip values for re-rendering)
+     - `categories`:  list of category strings
+     - `field_error`: name of the field to highlight, or None
+     - `submit_label`: text on the submit button (e.g. "Add expense",
+                      "Save changes")
+
+   The field-error highlight and the actions row layout are defined
+   globally in style.css (.field-error, .expense-form-actions,
+   .expense-form-submit). styles here stay page-agnostic so a future
+   step can reuse this partial without re-stating the rules.
+#}
+
+<div class="form-group {% if field_error == 'amount' %}field-error{% endif %}">
+    <label for="amount">Amount</label>
+    <input id="amount" type="number" name="amount" step="0.01" min="0.01"
+           class="form-input" placeholder="0.00" required
+           value="{{ values.amount|e }}">
+</div>
+
+<div class="form-group {% if field_error == 'category' %}field-error{% endif %}">
+    <label for="category">Category</label>
+    <select id="category" name="category" class="form-input" required>
+        <option value="" disabled {% if not values.category %}selected{% endif %}>Select a category</option>
+        {% for c in categories %}
+        <option value="{{ c }}" {% if values.category == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+<div class="form-group {% if field_error == 'date' %}field-error{% endif %}">
+    <label for="date">Date</label>
+    <input id="date" type="date" name="date" class="form-input" required
+           value="{{ values.date|e }}">
+</div>
+
+<div class="form-group {% if field_error == 'description' %}field-error{% endif %}">
+    <label for="description">Description <span class="optional">(optional)</span></label>
+    <textarea id="description" name="description" rows="3" maxlength="200"
+              class="form-input" placeholder="A short note about this expense">{{ values.description|e }}</textarea>
+</div>
+
+<div class="expense-form-actions">
+    <a class="btn-ghost" href="{{ url_for('profile') }}">Cancel</a>
+    <button type="submit" class="btn-submit expense-form-submit">{{ submit_label|e }}</button>
+</div>

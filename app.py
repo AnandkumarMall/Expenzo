@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, abort
 from database.db import (
     get_db, init_db, seed_db, get_user_by_email,
     get_user_by_id, get_expenses_for_user, count_expenses_for_user,
     get_total_spent, get_top_category, get_category_breakdown,
     add_expense as add_expense_to_db,
+    get_expense_by_id, update_expense,
     EXPENSE_CATEGORIES,
 )
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -169,7 +170,7 @@ def profile():
     ]
 
     transactions = [
-        {"date": r["date"], "desc": r["description"] or "", "cat": r["category"], "amt": r["amount"]}
+        {"id": r["id"], "date": r["date"], "desc": r["description"] or "", "cat": r["category"], "amt": r["amount"]}
         for r in get_expenses_for_user(user_id, limit=5, date_from=date_from, date_to=date_to)
     ]
 
@@ -230,6 +231,69 @@ def _validate_amount(raw):
     if amount <= 0:
         return None, "Amount must be greater than zero.", "amount"
     return round(amount, 2), None, None
+
+
+def _validate_expense_form(amount, amount_raw, category, date_raw, desc_raw):
+    """Validate the remaining three expense fields (category, date,
+    description) AND build the round-trip dict the template needs to
+    rehydrate the form on a validation error.
+
+    Returns (values, error, field_error):
+
+    - `values` is a round-trip dict the template uses to rehydrate the
+      form. `amount` carries the **raw** submitted string (not the
+      parsed float) so an invalid entry like "abc" round-trips back to
+      the input the user actually typed. The other three keys are the
+      raw .strip()ed strings. `description_clean` (None when blank) is
+      the value to persist on the success path.
+    - `error` is the user-facing message, or None on success.
+    - `field_error` is the field name ("category" / "date" / "description")
+      used to drive the .field-error highlight, or None on success.
+
+    The dict is built unconditionally — even when this helper returns
+    a successful (no error) result, the caller still has the round-trip
+    dict for the success-path persistence. When `_validate_amount`
+    fails first, the caller overrides `error` / `field_error` to surface
+    the amount error while keeping the same round-trip `values` shape.
+
+    Shared by /expenses/add and /expenses/<id>/edit so the rules cannot
+    drift between the two routes. The amount field is intentionally
+    NOT validated here — that is _validate_amount's job, called first
+    by the route.
+    """
+    values = {
+        "amount": amount_raw,
+        "category": category,
+        "date": date_raw,
+        "description": desc_raw,
+        "description_clean": desc_raw if desc_raw else None,
+    }
+
+    # category: empty is "required", any other non-canonical value is
+    # "validity". Server-side guard catches anything the <select>
+    # constraint would normally block (curl, DevTools tampering, etc.).
+    if not category:
+        return values, "Category is required.", "category"
+    if category not in EXPENSE_CATEGORIES:
+        return values, "Please choose a valid category.", "category"
+
+    # date: required, ISO YYYY-MM-DD, not in the future. Empty check
+    # comes first because strptime('') raises ValueError.
+    if not date_raw:
+        return values, "Date is required.", "date"
+    try:
+        parsed_date = datetime.strptime(date_raw, "%Y-%m-%d").date()
+    except ValueError:
+        return values, "Date must be in YYYY-MM-DD format.", "date"
+    if parsed_date > _today():
+        return values, "Date cannot be in the future.", "date"
+
+    # description: optional, capped at 200 chars on the server. The
+    # <textarea maxlength> is client-side only; a curl request bypasses it.
+    if desc_raw and len(desc_raw) > 200:
+        return values, "Description must be 200 characters or fewer.", "description"
+
+    return values, None, None
 
 
 def _shift_month(d, delta):
@@ -308,70 +372,29 @@ def add_expense():
         date_raw = request.form.get("date", "").strip()
         desc_raw = request.form.get("description", "").strip()
 
-        error = None
-        field_error = None
-
-        # amount: required, finite, > 0. Pulled into _validate_amount() so
-        # the four-step ladder reads as a flat list and the rule is reusable
-        # in Step 8 (edit) without copy-paste.
+        # amount: required, finite, > 0. _validate_amount returns the parsed
+        # float (or None) plus the user-facing error and the field name.
         amount, amount_err, amount_field = _validate_amount(amount_raw)
+
+        # category / date / description: validated together by the shared
+        # helper, which also builds the round-trip `values` dict. The dict
+        # is built unconditionally — if the amount failed first we still
+        # have a valid round-trip shape for the form, and we override the
+        # helper's error/field_error with the amount's.
+        values, error, field_error = _validate_expense_form(
+            amount, amount_raw, category, date_raw, desc_raw
+        )
         if amount_err is not None:
-            error = amount_err
-            field_error = amount_field
-
-        # category: empty is "required", any other non-canonical value is
-        # "validity". Server-side guard catches anything the <select>
-        # constraint would normally block (curl, DevTools tampering, etc.).
-        if error is None:
-            if not category:
-                error = "Category is required."
-                field_error = "category"
-            elif category not in EXPENSE_CATEGORIES:
-                error = "Please choose a valid category."
-                field_error = "category"
-
-        # date: required, ISO YYYY-MM-DD, not in the future. Empty check
-        # comes first because strptime('') raises ValueError.
-        if error is None:
-            if not date_raw:
-                error = "Date is required."
-                field_error = "date"
-            else:
-                try:
-                    parsed_date = datetime.strptime(date_raw, "%Y-%m-%d").date()
-                except ValueError:
-                    error = "Date must be in YYYY-MM-DD format."
-                    field_error = "date"
-                else:
-                    if parsed_date > _today():
-                        error = "Date cannot be in the future."
-                        field_error = "date"
-
-        # description: optional, capped at 200 chars on the server. The
-        # <textarea maxlength> is client-side only; a curl request bypasses it.
-        if error is None and desc_raw and len(desc_raw) > 200:
-            error = "Description must be 200 characters or fewer."
-            field_error = "description"
-
-        # description: empty string is stored as NULL, not "".
-        description = desc_raw if desc_raw else None
+            error, field_error = amount_err, amount_field
 
         if error is not None:
-            # Round-trip the raw submitted values so the user keeps their
-            # typing on valid fields. Description is always a string here so
-            # the template's |e filter is safe.
-            values = {
-                "amount": amount_raw,
-                "category": category,
-                "date": date_raw,
-                "description": desc_raw,
-            }
             return render_template(
                 "add_expense.html",
                 values=values,
                 categories=EXPENSE_CATEGORIES,
                 error=error,
                 field_error=field_error,
+                submit_label="Add expense",
             )
 
         # Success path — insert, then redirect to the dashboard.
@@ -380,7 +403,7 @@ def add_expense():
             amount,
             category,
             date_raw,
-            description,
+            values["description_clean"],
         )
         return redirect(url_for("profile"))
 
@@ -392,12 +415,95 @@ def add_expense():
         categories=EXPENSE_CATEGORIES,
         error=None,
         field_error=None,
+        submit_label="Add expense",
     )
 
 
-@app.route("/expenses/<int:id>/edit")
+@app.route("/expenses/<int:id>/edit", methods=["GET", "POST"])
 def edit_expense(id):
-    return "Edit expense — coming in Step 8"
+    # Auth gate — must run on both GET and POST, before reading request.form
+    # or the row, so logged-out users never see the form and can never submit
+    # an update.
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    user_id = session["user_id"]
+
+    # Fetch the row, scoped to the logged-in user. 404 for both
+    # "does not exist" and "owned by another user" so the route does not
+    # leak the existence of another user's row. The check happens before
+    # any form read on both methods.
+    expense = get_expense_by_id(user_id, id)
+    if expense is None:
+        abort(404)
+
+    if request.method == "POST":
+        # Parse form. Empty string is the sentinel for "missing" everywhere
+        # below; .strip() matches the convention used in /register and /add.
+        amount_raw = request.form.get("amount", "").strip()
+        category = request.form.get("category", "").strip()
+        date_raw = request.form.get("date", "").strip()
+        desc_raw = request.form.get("description", "").strip()
+
+        # amount: required, finite, > 0. _validate_amount returns the parsed
+        # float (or None) plus the user-facing error and the field name.
+        amount, amount_err, amount_field = _validate_amount(amount_raw)
+
+        # category / date / description: validated together by the shared
+        # helper, which also builds the round-trip `values` dict. The dict
+        # is built unconditionally — if the amount failed first we still
+        # have a valid round-trip shape for the form, and we override the
+        # helper's error/field_error with the amount's.
+        values, error, field_error = _validate_expense_form(
+            amount, amount_raw, category, date_raw, desc_raw
+        )
+        if amount_err is not None:
+            error, field_error = amount_err, amount_field
+
+        if error is not None:
+            return render_template(
+                "edit_expense.html",
+                expense=expense,
+                values=values,
+                categories=EXPENSE_CATEGORIES,
+                error=error,
+                field_error=field_error,
+                submit_label="Save changes",
+            )
+
+        # Success path — update the row in place. The WHERE clause includes
+        # user_id, so a user can never mutate another user's row even if
+        # they POST to the right id. created_at is intentionally not in the
+        # SET list — that column records the original insert time and is
+        # immutable from the application's perspective.
+        update_expense(
+            user_id,
+            id,
+            amount,
+            category,
+            date_raw,
+            values["description_clean"],
+        )
+        return redirect(url_for("profile"))
+
+    # GET — render the form pre-filled with the row's current values.
+    # Amount is rendered as a plain decimal so the field starts out
+    # looking like an editable number; description falls back to ""
+    # when the stored value is NULL.
+    return render_template(
+        "edit_expense.html",
+        expense=expense,
+        values={
+            "amount": f"{expense['amount']:.2f}",
+            "category": expense["category"],
+            "date": expense["date"],
+            "description": expense["description"] or "",
+        },
+        categories=EXPENSE_CATEGORIES,
+        error=None,
+        field_error=None,
+        submit_label="Save changes",
+    )
 
 
 @app.route("/expenses/<int:id>/delete")
