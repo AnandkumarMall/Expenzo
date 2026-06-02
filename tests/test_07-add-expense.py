@@ -269,23 +269,41 @@ class TestCssHygiene:
     """Static rules from CLAUDE.md and the spec, checked against the file on
     disk so a regression cannot slip in unnoticed."""
 
-    def test_add_expense_css_has_no_hex_values(self):
-        """``static/css/add-expense.css`` uses only ``var(--...)`` — no hex.
+    def test_expense_form_rules_have_no_hex_values(self):
+        """The expense-form CSS rules use only ``var(--...)`` — no hex.
 
-        The spec rule "uses only CSS variables from style.css" is normally a
-        code-review concern; this test pins it down so a future edit cannot
-        quietly introduce a hardcoded colour.
+        Step 8 moved the .field-error / .expense-form-actions /
+        .expense-form-submit rules into ``static/css/style.css`` (global)
+        so the add and edit pages share one source of truth. This test
+        pins the no-hex property for those rules specifically — a
+        regression that hardcodes a colour into any of them will fail
+        this test, even if the rest of style.css is unchanged.
         """
         css_path = os.path.abspath(
             os.path.join(
-                os.path.dirname(__file__), "..", "static", "css", "add-expense.css"
+                os.path.dirname(__file__), "..", "static", "css", "style.css"
             )
         )
         with open(css_path, encoding="utf-8") as f:
             css = f.read()
-        match = re.search(r"#[0-9a-fA-F]{3,8}\b", css)
+        # Slice the css down to the three rules Step 8 added. The start
+        # anchor is "/* Expense form (add + edit)" and we stop at the
+        # next /* … */ comment block boundary, or end of file. This
+        # keeps the assertion scoped to the new rules.
+        start = css.find("/* Expense form (add + edit)")
+        assert start != -1, "expense form rules not found in style.css"
+        # Walk forward to the next top-level /* comment opener that is
+        # not the start anchor. The first subsequent /* that starts a
+        # new top-level comment ends our slice.
+        rest = css[start + 1:]
+        end = rest.find("\n/* ")
+        if end == -1:
+            rule_block = rest
+        else:
+            rule_block = rest[:end]
+        match = re.search(r"#[0-9a-fA-F]{3,8}\b", rule_block)
         assert match is None, (
-            f"hex literal found in add-expense.css: {match.group(0)!r}"
+            f"hex literal found in expense-form rules of style.css: {match.group(0)!r}"
         )
 
 
