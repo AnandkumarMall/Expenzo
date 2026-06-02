@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/delete-expense.css') }}">
+{% endblock %}
+
+{% block title %}Delete expense — Spendly{% endblock %}
+
+{% block content %}
+
+<section class="auth-section">
+    <div class="auth-container">
+
+        <div class="auth-header">
+            <h1 class="auth-title">Delete expense</h1>
+            <p class="auth-subtitle">This action cannot be undone.</p>
+        </div>
+
+        <div class="auth-card">
+            <div class="delete-summary">
+                <div class="delete-summary-row">
+                    <span class="delete-summary-label">Date</span>
+                    <span class="delete-summary-value">{{ values.date|e }}</span>
+                </div>
+                <div class="delete-summary-row">
+                    <span class="delete-summary-label">Category</span>
+                    <span class="delete-summary-value">{{ values.category|e }}</span>
+                </div>
+                <div class="delete-summary-row">
+                    <span class="delete-summary-label">Amount</span>
+                    <span class="delete-summary-value">{{ values.amount|e }}</span>
+                </div>
+                <div class="delete-summary-row">
+                    <span class="delete-summary-label">Description</span>
+                    <span class="delete-summary-value">{{ values.description|e }}</span>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('delete_expense', id=expense.id) }}">
+                <div class="expense-form-actions">
+                    <a class="btn-ghost" href="{{ url_for('profile') }}">Cancel</a>
+                    <button type="submit" class="btn-submit btn-danger expense-form-submit">Delete expense</button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</section>
+
+{% endblock %}
